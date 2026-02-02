@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nicola's Mortgage Strategy Suite</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #1e40af; --blue-save: #2563eb; --green-save: #059669; --bg: #f8fafc; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); padding: 15px; color: #1e293b; }
+        
+        .app-header { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding: 15px 20px; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .app-header h1 { margin: 0; color: var(--primary); font-size: 1.8rem; }
+        .home-icon { font-size: 2.5rem; }
+
+        .main-layout { display: grid; grid-template-columns: 320px 1fr 320px; gap: 20px; max-width: 1600px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; margin-bottom: 20px; }
+        h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; font-size: 1.1rem; }
+        label { display: block; font-weight: 600; font-size: 0.8rem; margin-top: 12px; color: #64748b; }
+        input, select { width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        
+        .stat-box { padding: 15px; border-radius: 8px; background: #f1f5f9; margin-bottom: 15px; border-left: 5px solid #64748b; }
+        .stat-box.blue { border-left-color: var(--blue-save); background: #eff6ff; }
+        .stat-box.green { border-left-color: var(--green-save); background: #f0fdf4; }
+        .stat-box.total { border-left-color: #334155; background: #f8fafc; }
+        
+        .save-line { font-weight: 800; font-size: 1rem; margin-top: 5px; display: block; }
+        .math-box { font-family: monospace; background: rgba(0,0,0,0.05); padding: 5px; border-radius: 4px; display: block; margin: 5px 0; font-size: 0.9rem; }
+        .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .schedule-table th { text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; }
+        .schedule-table td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+        
+        .btn-export { width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-save { background: var(--green-save); margin-top: 5px; }
+        .extra-payment-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .chart-container { height: 250px; margin-bottom: 20px; }
+        .pdf-page-break { page-break-before: always; margin-top: 40px; }
+    </style>
+</head>
+<body>
+
+<div class="app-header">
+    <div class="home-icon">🏡</div>
+    <h1>Nicola's Mortgage Strategy Suite</h1>
+</div>
+
+<div id="report-content">
+    <div class="main-layout">
+        <div class="card no-print">
+            <h3>Scenario Manager</h3>
+            <label>Scenario Name</label>
+            <input type="text" id="scenarioName" placeholder="e.g. Current Plan">
+            <button class="btn-export btn-save" onclick="saveScenario()">Save Scenario</button>
+            
+            <label>Load Saved Scenario</label>
+            <select id="scenarioList" onchange="loadScenario(this.value)">
+                <option value="">-- Select --</option>
+            </select>
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+            <h3>1. Setup</h3>
+            <label>Principal Amount (€)</label>
+            <input type="number" id="loanAmount" value="300000" oninput="calculate()">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div><label>Total Yrs</label><input type="number" id="totalYears" value="30" oninput="calculate()"></div>
+                <div><label>Fixed (Y)</label><input type="number" id="fixedYears" value="5" oninput="calculate()"></div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div><label>Fixed %</label><input type="number" id="fixedRate" value="3.5" step="0.1" oninput="calculate()"></div>
+                <div><label>Variable %</label><input type="number" id="varRate" value="5.5" step="0.1" oninput="calculate()"></div>
+            </div>
+            <h3 style="margin-top:25px;">2. Strategy</h3>
+            <label>Extra Monthly (€)</label>
+            <input type="number" id="extraMonthly" value="200" oninput="calculate()">
+            <label>One-offs (€ / Month)</label>
+            <div id="oneOffContainer">
+                <div class="extra-payment-row">
+                    <input type="number" class="oneoff-amount" placeholder="€" oninput="checkNewRow(this)">
+                    <input type="number" class="oneoff-month" placeholder="Mo" oninput="checkNewRow(this)">
+                </div>
+            </div>
+            <button class="btn-export" onclick="exportPDF()">Export PDF Report</button>
+        </div>
+
+        <div class="center-col">
+            <div class="card">
+                <h3>Analytics Visuals</h3>
+                <div class="chart-container"><canvas id="payoffChart"></canvas></div>
+                <div class="chart-container"><canvas id="interestChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>3. Impact Analysis</h3>
+            <div class="stat-box">
+                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Fixed Phase (Years 1-5)</span>
+                <span style="display:block; font-size:1.1rem; font-weight:bold;" id="baseInstalment">€0.00</span>
+                <span style="font-size:0.8rem">Original Total Cost: <strong id="origTotalRepaid">€0.00</strong></span>
+            </div>
+            <div class="stat-box blue">
+                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase; color:var(--blue-save);">Monthly Strategy</span>
+                <div class="math-box" id="outflowMath">€0.00 + €0.00</div>
+                <span style="font-size:0.85rem">Actual Monthly Total: <strong id="totalMonthlyOutflow">€0.00</strong></span>
+                <hr style="border:0; border-top:1px solid #cbd5e1; margin:8px 0;">
+                <span class="save-line" style="color:var(--blue-save)" id="blueTimeSave">0 Years Saved</span>
+            </div>
+            <div class="stat-box green">
+                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase; color:var(--green-save);">One-Off Strategy Benefit</span>
+                <span style="display:block; font-size:1.1rem; font-weight:bold;" id="totalOneOffs">€0.00 Contributed</span>
+                <hr style="border:0; border-top:1px solid #cbd5e1; margin:8px 0;">
+                <span class="save-line" style="color:var(--green-save)" id="greenTimeSave">0 Years Saved</span>
+            </div>
+            <div class="stat-box total">
+                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Final Strategic Result</span>
+                <span style="display:block; font-size:1.1rem; font-weight:bold; color:#ef4444;" id="totalInterest">€0.00 Interest</span>
+                <span style="display:block; font-size:1.1rem; font-weight:bold; color:var(--primary);" id="actualTime">0 Years Time</span>
+                <div style="font-size:0.8rem; margin-top:8px">Total Lifetime Cash Out: <br><strong id="costFull">€0.00</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="pdf-page-break">
+        <div class="card" style="max-width: 1000px; margin: auto;">
+            <h3>Annual Breakdown Schedule</h3>
+            <table class="schedule-table" id="annualTable">
+                <thead><tr><th>Year</th><th>Interest Paid</th><th>Total Paid</th><th>Balance</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let pChart, iChart;
+    const euro = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // --- PROJECT MANAGEMENT ---
+    function saveScenario() {
+        const name = document.getElementById('scenarioName').value || "Unnamed Scenario " + new Date().toLocaleTimeString();
+        const data = getCurrentState();
+        let scenarios = JSON.parse(localStorage.getItem('nicola_scenarios') || "{}");
+        scenarios[name] = data;
+        localStorage.setItem('nicola_scenarios', JSON.stringify(scenarios));
+        updateScenarioList();
+        alert("Scenario '" + name + "' saved!");
+    }
+
+    function updateScenarioList() {
+        const list = document.getElementById('scenarioList');
+        const scenarios = JSON.parse(localStorage.getItem('nicola_scenarios') || "{}");
+        list.innerHTML = '<option value="">-- Load Saved --</option>';
+        for (let name in scenarios) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            list.appendChild(opt);
+        }
+    }
+
+    function loadScenario(name) {
+        if (!name) return;
+        const scenarios = JSON.parse(localStorage.getItem('nicola_scenarios') || "{}");
+        const data = scenarios[name];
+        document.getElementById('scenarioName').value = name;
+        document.getElementById('loanAmount').value = data.loanAmount;
+        document.getElementById('totalYears').value = data.totalYears;
+        document.getElementById('fixedYears').value = data.fixedYears;
+        document.getElementById('fixedRate').value = data.fixedRate;
+        document.getElementById('varRate').value = data.varRate;
+        document.getElementById('extraMonthly').value = data.extraMonthly;
+        const container = document.getElementById('oneOffContainer');
+        container.innerHTML = '';
+        data.oneOffs.forEach(item => { addOneOffRow(item.a, item.m); });
+        addOneOffRow('', '');
+        calculate();
+    }
+
+    function getCurrentState() {
+        const oneOffs = [];
+        document.querySelectorAll('.extra-payment-row').forEach(row => {
+            const a = row.querySelectorAll('input')[0].value;
+            const m = row.querySelectorAll('input')[1].value;
+            if(a && m) oneOffs.push({a, m});
+        });
+        return {
+            loanAmount: document.getElementById('loanAmount').value,
+            totalYears: document.getElementById('totalYears').value,
+            fixedYears: document.getElementById('fixedYears').value,
+            fixedRate: document.getElementById('fixedRate').value,
+            varRate: document.getElementById('varRate').value,
+            extraMonthly: document.getElementById('extraMonthly').value,
+            oneOffs
+        };
+    }
+
+    // --- CORE LOGIC ---
+    function addOneOffRow(amt, mo) {
+        const container = document.getElementById('oneOffContainer');
+        const div = document.createElement('div');
+        div.className = 'extra-payment-row';
+        div.innerHTML = `<input type="number" value="${amt}" placeholder="€" oninput="checkNewRow(this)">
+                         <input type="number" value="${mo}" placeholder="Mo" oninput="checkNewRow(this)">`;
+        container.appendChild(div);
+    }
+
+    function checkNewRow(input) {
+        const container = document.getElementById('oneOffContainer');
+        if (container.lastElementChild.querySelectorAll('input')[0].value !== "") {
+            addOneOffRow('', '');
+        }
+        calculate();
+    }
+
+    function getPMT(p, r, y) {
+        let mr = r / 12 / 100;
+        let n = Math.max(1, y * 12);
+        return mr === 0 ? p / n : (p * mr) / (1 - Math.pow(1 + mr, -n));
+    }
+
+    function simulate(loanAmt, totY, fixY, fixR, varR, extraM, oneOffMap) {
+        let balance = loanAmt, points = [loanAmt], intFlow = [0], month = 0, interestSum = 0;
+        let initialPMT = getPMT(loanAmt, fixR, totY), currentPMT = initialPMT, varBasePMT = 0, annual = [];
+        while (balance > 0.01 && month < 600) {
+            month++;
+            let isFixed = month <= fixY * 12;
+            let rate = isFixed ? fixR : varR;
+            if (month === (fixY * 12) + 1) { currentPMT = getPMT(balance, varR, (totY * 12 - month + 1) / 12); varBasePMT = currentPMT; }
+            let mInt = balance * (rate / 12 / 100);
+            interestSum += mInt;
+            let pay = currentPMT + (isFixed ? 0 : extraM) + (oneOffMap[month] || 0);
+            let principal = Math.min(balance, pay - mInt);
+            balance -= principal;
+            points.push(balance);
+            intFlow.push(interestSum);
+            if (month % 12 === 0 || balance <= 0) {
+                annual.push({ yr: Math.ceil(month/12), bal: balance, int: interestSum, tot: interestSum + (loanAmt - balance) });
+                if (balance <= 0) break;
+            }
+        }
+        return { points, intFlow, interestSum, months: month, initialPMT, varBasePMT, annual };
+    }
+
+    function calculate() {
+        const L = parseFloat(document.getElementById('loanAmount').value) || 0;
+        const TY = parseInt(document.getElementById('totalYears').value) || 1;
+        const FY = parseInt(document.getElementById('fixedYears').value) || 0;
+        const FR = parseFloat(document.getElementById('fixedRate').value) || 0;
+        const VR = parseFloat(document.getElementById('varRate').value) || 0;
+        const EM = parseFloat(document.getElementById('extraMonthly').value) || 0;
+        const oneOffs = {};
+        document.querySelectorAll('.extra-payment-row').forEach(row => {
+            const a = parseFloat(row.querySelectorAll('input')[0].value);
+            const m = parseInt(row.querySelectorAll('input')[1].value);
+            if (a && m) oneOffs[m] = (oneOffs[m] || 0) + a;
+        });
+
+        const base = simulate(L, TY, FY, FR, VR, 0, {});
+        const mid = simulate(L, TY, FY, FR, VR, EM, {});
+        const full = simulate(L, TY, FY, FR, VR, EM, oneOffs);
+
+        document.getElementById('baseInstalment').innerText = "€" + euro.format(base.initialPMT);
+        document.getElementById('origTotalRepaid').innerText = "€" + euro.format(L + base.interestSum);
+        document.getElementById('outflowMath').innerText = "€" + euro.format(mid.varBasePMT) + " + €" + euro.format(EM);
+        document.getElementById('totalMonthlyOutflow').innerText = "€" + euro.format(mid.varBasePMT + EM);
+        document.getElementById('blueTimeSave').innerText = ((base.months - mid.months)/12).toFixed(1) + " Years Saved";
+        document.getElementById('totalOneOffs').innerText = "€" + euro.format(Object.values(oneOffs).reduce((a,b)=>a+b, 0)) + " Contributed";
+        document.getElementById('greenTimeSave').innerText = ((mid.months - full.months)/12).toFixed(1) + " Years Saved";
+        document.getElementById('totalInterest').innerText = "€" + euro.format(full.interestSum);
+        document.getElementById('actualTime').innerText = (full.months / 12).toFixed(1) + " Years";
+        document.getElementById('costFull').innerText = "€" + euro.format(L + full.interestSum);
+
+        let tableHtml = "";
+        full.annual.forEach(d => {
+            tableHtml += `<tr><td>Year ${d.yr}</td><td>€${euro.format(d.int)}</td><td>€${euro.format(d.tot)}</td><td><strong>€${euro.format(d.bal)}</strong></td></tr>`;
+        });
+        document.querySelector("#annualTable tbody").innerHTML = tableHtml;
+        renderCharts(base, full, L);
+    }
+
+    function renderCharts(base, full, loanAmt) {
+        if (pChart) pChart.destroy(); if (iChart) iChart.destroy();
+        const labels = Array.from({length: Math.max(base.points.length, full.points.length)}, (_, i) => i);
+        pChart = new Chart(document.getElementById('payoffChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{ label: 'Original', data: base.points, borderColor: '#94a3b8', borderWidth: 1, pointRadius: 0 },
+                           { label: 'Strategic', data: full.points, borderColor: '#10b981', borderWidth: 3, fill: true, backgroundColor: 'rgba(16, 185, 129, 0.05)', pointRadius: 0 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+        iChart = new Chart(document.getElementById('interestChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{ label: 'Interest', data: full.intFlow, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, pointRadius: 0 },
+                           { label: 'Principal', data: full.points.map(b => loanAmt - b), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, pointRadius: 0 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    function exportPDF() {
+        const element = document.getElementById('report-content');
+        const opt = { margin: [10, 10, 10, 10], filename: 'Nicola_Strategy_Report.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+        html2pdf().set(opt).from(element).save();
+    }
+
+    window.onload = () => { updateScenarioList(); calculate(); };
+</script>
+</body>
+</html>
