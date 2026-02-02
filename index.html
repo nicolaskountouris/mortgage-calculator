@@ -6,15 +6,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --primary: #1e40af; --blue-save: #2563eb; --green-save: #059669; --bg: #f8fafc; }
+        :root { --primary: #1e40af; --blue-save: #2563eb; --green-save: #059669; --bg: #f8fafc; --danger: #dc2626; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); padding: 15px; color: #1e293b; }
         
         .app-header { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding: 15px 20px; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .app-header h1 { margin: 0; color: var(--primary); font-size: 1.8rem; }
         .home-icon { font-size: 2.5rem; }
 
-        .main-layout { display: grid; grid-template-columns: 320px 1fr 320px; gap: 20px; max-width: 1600px; margin: auto; }
+        .main-layout { display: grid; grid-template-columns: 320px 1fr 320px; gap: 20px; max-width: 1600px; margin: auto; align-items: stretch; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; margin-bottom: 20px; }
+        
+        /* Center Column Flex Logic for Full-Height Graphs */
+        .center-col { display: flex; flex-direction: column; height: 100%; }
+        .visuals-card { flex-grow: 1; display: flex; flex-direction: column; height: auto; }
+        .chart-container { flex: 1; min-height: 300px; position: relative; margin-top: 10px; }
+
         h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; font-size: 1.1rem; }
         label { display: block; font-weight: 600; font-size: 0.8rem; margin-top: 12px; color: #64748b; }
         input, select { width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
@@ -32,8 +38,8 @@
         
         .btn-export { width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .btn-save { background: var(--green-save); margin-top: 5px; }
+        .btn-delete { background: var(--danger); margin-top: 5px; display: none; }
         .extra-payment-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-        .chart-container { height: 250px; margin-bottom: 20px; }
         .pdf-page-break { page-break-before: always; margin-top: 40px; }
     </style>
 </head>
@@ -53,9 +59,11 @@
             <button class="btn-export btn-save" onclick="saveScenario()">Save Scenario</button>
             
             <label>Load Saved Scenario</label>
-            <select id="scenarioList" onchange="loadScenario(this.value)">
+            <select id="scenarioList" onchange="handleListChange(this.value)">
                 <option value="">-- Select --</option>
             </select>
+            <button id="deleteBtn" class="btn-export btn-delete" onclick="deleteScenario()">Delete Selected Scenario</button>
+            
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
             <h3>1. Setup</h3>
@@ -83,9 +91,10 @@
         </div>
 
         <div class="center-col">
-            <div class="card">
-                <h3>Analytics Visuals</h3>
+            <div class="card visuals-card">
+                <h3>Amortization Trajectory</h3>
                 <div class="chart-container"><canvas id="payoffChart"></canvas></div>
+                <h3 style="margin-top:20px;">Interest vs Principal Growth</h3>
                 <div class="chart-container"><canvas id="interestChart"></canvas></div>
             </div>
         </div>
@@ -136,19 +145,46 @@
 
     // --- PROJECT MANAGEMENT ---
     function saveScenario() {
-        const name = document.getElementById('scenarioName').value || "Unnamed Scenario " + new Date().toLocaleTimeString();
+        const nameInput = document.getElementById('scenarioName');
+        const name = nameInput.value.trim() || "Scenario " + new Date().toLocaleTimeString();
         const data = getCurrentState();
         let scenarios = JSON.parse(localStorage.getItem('nicola_scenarios') || "{}");
         scenarios[name] = data;
         localStorage.setItem('nicola_scenarios', JSON.stringify(scenarios));
         updateScenarioList();
+        document.getElementById('scenarioList').value = name;
+        document.getElementById('deleteBtn').style.display = 'block';
         alert("Scenario '" + name + "' saved!");
+    }
+
+    function handleListChange(name) {
+        const btn = document.getElementById('deleteBtn');
+        if (!name) {
+            btn.style.display = 'none';
+        } else {
+            loadScenario(name);
+            btn.style.display = 'block';
+        }
+    }
+
+    function deleteScenario() {
+        const list = document.getElementById('scenarioList');
+        const name = list.value;
+        if (!name) return;
+        if (confirm("Are you sure you want to delete '" + name + "'?")) {
+            let scenarios = JSON.parse(localStorage.getItem('nicola_scenarios') || "{}");
+            delete scenarios[name];
+            localStorage.setItem('nicola_scenarios', JSON.stringify(scenarios));
+            updateScenarioList();
+            document.getElementById('deleteBtn').style.display = 'none';
+            document.getElementById('scenarioName').value = "";
+        }
     }
 
     function updateScenarioList() {
         const list = document.getElementById('scenarioList');
         const scenarios = JSON.parse(localStorage.getItem('nicola_scenarios') || "{}");
-        list.innerHTML = '<option value="">-- Load Saved --</option>';
+        list.innerHTML = '<option value="">-- Select --</option>';
         for (let name in scenarios) {
             const opt = document.createElement('option');
             opt.value = name;
@@ -280,6 +316,14 @@
     function renderCharts(base, full, loanAmt) {
         if (pChart) pChart.destroy(); if (iChart) iChart.destroy();
         const labels = Array.from({length: Math.max(base.points.length, full.points.length)}, (_, i) => i);
+        
+        const commonOptions = { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { x: { display: false } }
+        };
+
         pChart = new Chart(document.getElementById('payoffChart'), {
             type: 'line',
             data: {
@@ -287,16 +331,17 @@
                 datasets: [{ label: 'Original', data: base.points, borderColor: '#94a3b8', borderWidth: 1, pointRadius: 0 },
                            { label: 'Strategic', data: full.points, borderColor: '#10b981', borderWidth: 3, fill: true, backgroundColor: 'rgba(16, 185, 129, 0.05)', pointRadius: 0 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: commonOptions
         });
+        
         iChart = new Chart(document.getElementById('interestChart'), {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [{ label: 'Interest', data: full.intFlow, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, pointRadius: 0 },
-                           { label: 'Principal', data: full.points.map(b => loanAmt - b), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, pointRadius: 0 }]
+                datasets: [{ label: 'Interest Paid', data: full.intFlow, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, pointRadius: 0 },
+                           { label: 'Principal Paid', data: full.points.map(b => loanAmt - b), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, pointRadius: 0 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: commonOptions
         });
     }
 
