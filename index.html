@@ -16,10 +16,9 @@
         .main-layout { display: grid; grid-template-columns: 320px 1fr 320px; gap: 20px; max-width: 1600px; margin: auto; align-items: stretch; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; margin-bottom: 20px; }
         
-        /* Center Column Flex Logic for Full-Height Graphs */
         .center-col { display: flex; flex-direction: column; height: 100%; }
         .visuals-card { flex-grow: 1; display: flex; flex-direction: column; height: auto; }
-        .chart-container { flex: 1; min-height: 300px; position: relative; margin-top: 10px; }
+        .chart-container { flex: 1; min-height: 320px; position: relative; margin-top: 10px; }
 
         h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; font-size: 1.1rem; }
         label { display: block; font-weight: 600; font-size: 0.8rem; margin-top: 12px; color: #64748b; }
@@ -30,7 +29,6 @@
         .stat-box.green { border-left-color: var(--green-save); background: #f0fdf4; }
         .stat-box.total { border-left-color: #334155; background: #f8fafc; }
         
-        .save-line { font-weight: 800; font-size: 1rem; margin-top: 5px; display: block; }
         .math-box { font-family: monospace; background: rgba(0,0,0,0.05); padding: 5px; border-radius: 4px; display: block; margin: 5px 0; font-size: 0.9rem; }
         .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         .schedule-table th { text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; }
@@ -55,19 +53,18 @@
         <div class="card no-print">
             <h3>Scenario Manager</h3>
             <label>Scenario Name</label>
-            <input type="text" id="scenarioName" placeholder="e.g. Current Plan">
+            <input type="text" id="scenarioName" placeholder="e.g. 2026 Strategy">
             <button class="btn-export btn-save" onclick="saveScenario()">Save Scenario</button>
             
-            <label>Load Saved Scenario</label>
+            <label>Load / Manage</label>
             <select id="scenarioList" onchange="handleListChange(this.value)">
                 <option value="">-- Select --</option>
             </select>
-            <button id="deleteBtn" class="btn-export btn-delete" onclick="deleteScenario()">Delete Selected Scenario</button>
+            <button id="deleteBtn" class="btn-export btn-delete" onclick="deleteScenario()">Delete Current Scenario</button>
             
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
             <h3>1. Setup</h3>
-            <label>Principal Amount (€)</label>
             <input type="number" id="loanAmount" value="300000" oninput="calculate()">
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                 <div><label>Total Yrs</label><input type="number" id="totalYears" value="30" oninput="calculate()"></div>
@@ -104,7 +101,7 @@
             <div class="stat-box">
                 <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Fixed Phase (Years 1-5)</span>
                 <span style="display:block; font-size:1.1rem; font-weight:bold;" id="baseInstalment">€0.00</span>
-                <span style="font-size:0.8rem">Original Total Cost: <strong id="origTotalRepaid">€0.00</strong></span>
+                <span style="font-size:0.8rem">Original Total: <strong id="origTotalRepaid">€0.00</strong></span>
             </div>
             <div class="stat-box blue">
                 <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase; color:var(--blue-save);">Monthly Strategy</span>
@@ -114,16 +111,16 @@
                 <span class="save-line" style="color:var(--blue-save)" id="blueTimeSave">0 Years Saved</span>
             </div>
             <div class="stat-box green">
-                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase; color:var(--green-save);">One-Off Strategy Benefit</span>
+                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase; color:var(--green-save);">One-Off Benefit</span>
                 <span style="display:block; font-size:1.1rem; font-weight:bold;" id="totalOneOffs">€0.00 Contributed</span>
                 <hr style="border:0; border-top:1px solid #cbd5e1; margin:8px 0;">
                 <span class="save-line" style="color:var(--green-save)" id="greenTimeSave">0 Years Saved</span>
             </div>
             <div class="stat-box total">
-                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Final Strategic Result</span>
+                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Strategic Result</span>
                 <span style="display:block; font-size:1.1rem; font-weight:bold; color:#ef4444;" id="totalInterest">€0.00 Interest</span>
                 <span style="display:block; font-size:1.1rem; font-weight:bold; color:var(--primary);" id="actualTime">0 Years Time</span>
-                <div style="font-size:0.8rem; margin-top:8px">Total Lifetime Cash Out: <br><strong id="costFull">€0.00</strong></div>
+                <div style="font-size:0.8rem; margin-top:8px">Lifetime Cash Out: <br><strong id="costFull">€0.00</strong></div>
             </div>
         </div>
     </div>
@@ -143,7 +140,6 @@
     let pChart, iChart;
     const euro = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    // --- PROJECT MANAGEMENT ---
     function saveScenario() {
         const nameInput = document.getElementById('scenarioName');
         const name = nameInput.value.trim() || "Scenario " + new Date().toLocaleTimeString();
@@ -159,19 +155,15 @@
 
     function handleListChange(name) {
         const btn = document.getElementById('deleteBtn');
-        if (!name) {
-            btn.style.display = 'none';
-        } else {
-            loadScenario(name);
-            btn.style.display = 'block';
-        }
+        if (!name) { btn.style.display = 'none'; } 
+        else { loadScenario(name); btn.style.display = 'block'; }
     }
 
     function deleteScenario() {
         const list = document.getElementById('scenarioList');
         const name = list.value;
         if (!name) return;
-        if (confirm("Are you sure you want to delete '" + name + "'?")) {
+        if (confirm("Delete '" + name + "'?")) {
             let scenarios = JSON.parse(localStorage.getItem('nicola_scenarios') || "{}");
             delete scenarios[name];
             localStorage.setItem('nicola_scenarios', JSON.stringify(scenarios));
@@ -184,17 +176,15 @@
     function updateScenarioList() {
         const list = document.getElementById('scenarioList');
         const scenarios = JSON.parse(localStorage.getItem('nicola_scenarios') || "{}");
-        list.innerHTML = '<option value="">-- Select --</option>';
+        list.innerHTML = '<option value="">-- Load Saved --</option>';
         for (let name in scenarios) {
             const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
+            opt.value = name; opt.textContent = name;
             list.appendChild(opt);
         }
     }
 
     function loadScenario(name) {
-        if (!name) return;
         const scenarios = JSON.parse(localStorage.getItem('nicola_scenarios') || "{}");
         const data = scenarios[name];
         document.getElementById('scenarioName').value = name;
@@ -229,7 +219,6 @@
         };
     }
 
-    // --- CORE LOGIC ---
     function addOneOffRow(amt, mo) {
         const container = document.getElementById('oneOffContainer');
         const div = document.createElement('div');
@@ -299,7 +288,7 @@
         document.getElementById('outflowMath').innerText = "€" + euro.format(mid.varBasePMT) + " + €" + euro.format(EM);
         document.getElementById('totalMonthlyOutflow').innerText = "€" + euro.format(mid.varBasePMT + EM);
         document.getElementById('blueTimeSave').innerText = ((base.months - mid.months)/12).toFixed(1) + " Years Saved";
-        document.getElementById('totalOneOffs').innerText = "€" + euro.format(Object.values(oneOffs).reduce((a,b)=>a+b, 0)) + " Contributed";
+        document.getElementById('totalOneOffs').innerText = "€" + euro.format(Object.values(oneOffs).reduce((a,b)=>a+b, 0)) + " Total";
         document.getElementById('greenTimeSave').innerText = ((mid.months - full.months)/12).toFixed(1) + " Years Saved";
         document.getElementById('totalInterest').innerText = "€" + euro.format(full.interestSum);
         document.getElementById('actualTime').innerText = (full.months / 12).toFixed(1) + " Years";
@@ -321,7 +310,14 @@
             responsive: true, 
             maintainAspectRatio: false,
             plugins: { legend: { position: 'bottom' } },
-            scales: { x: { display: false } }
+            scales: { 
+                x: { 
+                    display: true, // FIXED: Now visible
+                    title: { display: true, text: 'Month Number', font: { weight: 'bold' } },
+                    ticks: { maxTicksLimit: 20 } // Thin out labels for readability
+                },
+                y: { title: { display: true, text: 'Amount (€)', font: { weight: 'bold' } } }
+            }
         };
 
         pChart = new Chart(document.getElementById('payoffChart'), {
