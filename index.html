@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Nicola's Mortgage Strategy Suite v2.3 - A precision tacking suite</title>
+    <title>Nicola's Mortgage Strategy Suite v3.7</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --primary: #1e40af; --blue-save: #2563eb; --green-save: #059669; --bg: #f8fafc; --danger: #dc2626; }
+        :root { --primary: #1e40af; --blue-save: #2563eb; --green-save: #059669; --orange-sub: #f59e0b; --bg: #f8fafc; --danger: #dc2626; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); padding: 15px; color: #1e293b; }
         
         .app-header { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding: 15px 20px; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -16,9 +16,9 @@
         .main-layout { display: grid; grid-template-columns: 340px 1fr 340px; gap: 20px; max-width: 1600px; margin: auto; align-items: stretch; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; margin-bottom: 20px; }
         
-        .center-col { display: flex; flex-direction: column; height: 100%; }
+        .center-col { display: flex; flex-direction: column; min-width: 0; }
         .visuals-card { flex-grow: 1; display: flex; flex-direction: column; height: auto; }
-        .chart-container { flex: 1; min-height: 320px; position: relative; margin-top: 10px; }
+        .chart-container { position: relative; height: 320px; width: 100%; margin-top: 10px; }
 
         h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; font-size: 1.1rem; }
         label { display: block; font-weight: 600; font-size: 0.8rem; margin-top: 12px; color: #64748b; }
@@ -27,25 +27,25 @@
         .stat-box { padding: 15px; border-radius: 8px; background: #f1f5f9; margin-bottom: 15px; border-left: 5px solid #64748b; }
         .stat-box.blue { border-left-color: var(--blue-save); background: #eff6ff; }
         .stat-box.green { border-left-color: var(--green-save); background: #f0fdf4; }
+        .stat-box.orange { border-left-color: var(--orange-sub); background: #fffbeb; }
         .stat-box.total { border-left-color: #334155; background: #f8fafc; }
         
-        .math-box { font-family: monospace; background: rgba(0,0,0,0.05); padding: 5px; border-radius: 4px; display: block; margin: 5px 0; font-size: 0.9rem; }
-        .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+        .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
         .schedule-table th { text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; background: #f8fafc; }
         .schedule-table td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
         
         .btn-export { width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .btn-save { background: var(--green-save); margin-top: 5px; }
-        .btn-delete { background: var(--danger); margin-top: 5px; display: none; } /* Hidden by default */
+        .btn-delete { background: var(--danger); margin-top: 5px; display: none; }
         .extra-payment-row { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; margin-bottom: 8px; }
-        .pdf-page-break { page-break-before: always; margin-top: 40px; }
+        .small-breakdown { font-size: 0.75rem; color: #64748b; margin-top: 4px; display: block; }
     </style>
 </head>
 <body>
 
 <div class="app-header">
     <div class="home-icon">🏡</div>
-    <h1>Nicola's Mortgage Strategy Suite v2.3 - A precision tacking suite</h1>
+    <h1>Nicola's Mortgage Strategy Suite v3.7 - A precision tackling suite </h1>
 </div>
 
 <div id="report-content">
@@ -59,11 +59,10 @@
                 <option value="">-- Load Saved --</option>
             </select>
             <button id="deleteBtn" class="btn-export btn-delete" onclick="deleteScenario()">Delete Current Scenario</button>
-            
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
-            <h3>1. Loan Setup (Phased)</h3>
-            <label>Drawdowns (€ / Month released)</label>
+            <h3>1. Loan Setup</h3>
+            <label>Drawdowns (Amount / Month)</label>
             <div id="drawdownContainer">
                 <div class="extra-payment-row">
                     <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown(this)">
@@ -81,29 +80,36 @@
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                 <div><label>Total Yrs</label><input type="number" id="totalYears" value="21" oninput="calculate()"></div>
-                <div><label>Fixed (Months)</label><input type="number" id="fixedMonths" value="36" oninput="calculate()"></div>
+                <div><label>Fixed (Mo)</label><input type="number" id="fixedMonths" value="36" oninput="calculate()"></div>
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                 <div><label>Fixed %</label><input type="number" id="fixedRate" value="3" step="0.01" oninput="calculate()"></div>
-                <div><label>Variable %</label><input type="number" id="varRate" value="3.85" step="0.01" oninput="calculate()"></div>
+                <div><label>Var %</label><input type="number" id="varRate" value="3.85" step="0.01" oninput="calculate()"></div>
             </div>
 
             <h3 style="margin-top:25px;">2. Strategy</h3>
-            <label>Extra Monthly (€) <small>(Post-Fixed)</small></label>
+            <label>Extra Monthly (€)</label>
             <input type="number" id="extraMonthly" value="2145.85" oninput="calculate()">
-            <label>One-off Lump Sums (€ / Month)</label>
+            <label>One-off Lump Sums (€ / Mo)</label>
             <div id="oneOffContainer">
                 <div class="extra-payment-row">
                     <input type="number" class="oneoff-amount" placeholder="€" oninput="checkNewOneOff(this)">
                     <input type="number" class="oneoff-month" placeholder="Mo" oninput="checkNewOneOff(this)">
                 </div>
             </div>
-            <button class="btn-export" onclick="exportPDF()">Export PDF Report</button>
+
+            <h3 style="margin-top:25px;">3. Subsidy Settings</h3>
+            <label>Approval Month</label>
+            <input type="number" id="subsidyStartMonth" value="12" oninput="calculate()">
+            <label>Payable Rate (%)</label>
+            <input type="number" id="payableRate" value="1.0" step="0.1" oninput="calculate()">
+            
+            <button class="btn-export" style="margin-top:20px" onclick="exportPDF()">Export PDF Report</button>
         </div>
 
         <div class="center-col">
             <div class="card visuals-card">
-                <h3>Amortization Trajectory</h3>
+                <h3>Amortization Trajectory (The Subsidy Gap)</h3>
                 <div class="chart-container"><canvas id="payoffChart"></canvas></div>
                 <h3 style="margin-top:20px;">Interest vs Principal Growth</h3>
                 <div class="chart-container"><canvas id="interestChart"></canvas></div>
@@ -111,51 +117,69 @@
         </div>
 
         <div class="card">
-            <h3>3. Impact Analysis</h3>
+            <h3>4. Impact Analysis</h3>
             <div class="stat-box">
-                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Entry Phase (Fixed)</span>
+                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Entry Phase</span>
                 <span style="display:block; font-size:1.1rem; font-weight:bold;" id="baseInstalment">€0.00</span>
-                <span style="font-size:0.8rem">Original Total Cost: <strong id="origTotalRepaid">€0.00</strong></span>
+                <span style="font-size:0.8rem">Original Total: <strong id="origTotalRepaid">€0.00</strong></span>
             </div>
             <div class="stat-box blue">
                 <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase; color:var(--blue-save);">Monthly Strategy (Variable)</span>
-                <div class="math-box" id="outflowMath">€0.00 + €0.00</div>
-                <span style="font-size:0.85rem">Actual Monthly Total: <strong id="totalMonthlyOutflow">€0.00</strong></span>
-                <hr style="border:0; border-top:1px solid #cbd5e1; margin:8px 0;">
-                <span class="save-line" style="color:var(--blue-save)" id="blueTimeSave">0 Years Saved</span>
+                <span style="display:block; font-size:1.1rem; font-weight:bold;" id="totalMonthlyOutflow">€0.00</span>
+                <span id="strategyMath" class="small-breakdown">€0 + €0 = €0</span>
+                <span id="blueTimeSave" style="font-size:0.85rem; font-weight:bold;">0 Years Saved</span>
+            </div>
+            <div class="stat-box orange">
+                <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase; color:var(--orange-sub);">Subsidy Benefit</span>
+                <span style="display:block; font-size:1.1rem; font-weight:bold;" id="totalSubsidyGained">€0.00</span>
+                <span id="orangeTimeSave" style="font-size:0.85rem;">0 Years Saved</span>
             </div>
             <div class="stat-box green">
                 <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase; color:var(--green-save);">One-Off Benefit</span>
-                <span style="display:block; font-size:1.1rem; font-weight:bold;" id="totalOneOffs">€0.00 Contributed</span>
-                <hr style="border:0; border-top:1px solid #cbd5e1; margin:8px 0;">
-                <span class="save-line" style="color:var(--green-save)" id="greenTimeSave">0 Years Saved</span>
+                <span style="display:block; font-size:1.1rem; font-weight:bold;" id="totalOneOffs">€0.00</span>
+                <span id="greenTimeSave" style="font-size:0.85rem;">0 Years Saved</span>
             </div>
             <div class="stat-box total">
                 <span style="font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Strategic Result</span>
-                <span style="display:block; font-size:1.1rem; font-weight:bold; color:#ef4444;" id="totalInterest">€0.00 Interest</span>
-                <span style="display:block; font-size:1.1rem; font-weight:bold; color:var(--primary);" id="actualTime">0 Years Time</span>
-                <div style="font-size:0.8rem; margin-top:8px">Lifetime Cash Out: <br><strong id="costFull">€0.00</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span>Interest Paid by Me:</span>
+                    <strong style="color:var(--danger);" id="paidInterestByMe">€0.00</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:5px;">
+                    <span>Interest Covered by Subsidy:</span>
+                    <strong style="color:var(--orange-sub);" id="paidBySubsidy">€0.00</strong>
+                </div>
+                <div style="text-align:center; padding: 10px 0;">
+                    <span style="font-size:0.75rem; text-transform:uppercase; color:#64748b;">Total Payoff Timeline</span>
+                    <span style="display:block; font-size:1.4rem; font-weight:bold; color:var(--primary);" id="actualTime">0.0 Years</span>
+                </div>
+                <div style="font-size:0.8rem; border-top:1px solid #eee; padding-top:8px;">
+                    Total Lifetime Cash Out: <strong id="costFull">€0.00</strong>
+                </div>
+                <div style="font-size:0.8rem; margin-top:4px; color:var(--primary);">
+                    Lifetime Cash Out (Paid by Me): <strong id="costPaidByMe">€0.00</strong>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="pdf-page-break">
-        <div class="card" style="max-width: 1100px; margin: auto;">
-            <h3>Annual Breakdown Schedule</h3>
-            <table class="schedule-table" id="annualTable">
-                <thead>
-                    <tr>
-                        <th>Year</th>
-                        <th>Interest (Year)</th>
-                        <th>Interest (Total)</th>
-                        <th>Principal (Year)</th>
-                        <th>Principal (Total)</th>
-                        <th>Balance</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+    <div class="card" style="max-width: 1200px; margin: 20px auto;">
+        <h3>Annual Breakdown Schedule</h3>
+        <table class="schedule-table" id="annualTable">
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Interest (Year)</th>
+                    <th>Accum. Interest</th>
+                    <th>Subsidy Applied</th>
+                    <th>Accum. Subsidy</th>
+                    <th>Principal (Year)</th>
+                    <th>Principal (Total)</th>
+                    <th>Balance</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
 </div>
 
@@ -163,7 +187,7 @@
     let pChart, iChart;
     const euro = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    function checkNewDrawdown(input) {
+    function checkNewDrawdown() {
         const container = document.getElementById('drawdownContainer');
         if (container.lastElementChild.querySelectorAll('input')[0].value !== "") {
             addGenericRow('drawdownContainer', 'draw-amount', 'draw-month', 'Amount €', 'Mo', checkNewDrawdown);
@@ -171,7 +195,7 @@
         calculate();
     }
 
-    function checkNewOneOff(input) {
+    function checkNewOneOff() {
         const container = document.getElementById('oneOffContainer');
         if (container.lastElementChild.querySelectorAll('input')[0].value !== "") {
             addGenericRow('oneOffContainer', 'oneoff-amount', 'oneoff-month', '€', 'Mo', checkNewOneOff);
@@ -185,7 +209,7 @@
         div.className = 'extra-payment-row';
         div.innerHTML = `<input type="number" class="${c1}" placeholder="${p1}">
                          <input type="number" class="${c2}" placeholder="${p2}">`;
-        div.querySelectorAll('input').forEach(i => i.oninput = () => callback(i));
+        div.querySelectorAll('input').forEach(i => i.oninput = () => callback());
         container.appendChild(div);
     }
 
@@ -195,50 +219,80 @@
         return mr === 0 ? p / n : (p * mr) / (1 - Math.pow(1 + mr, -n));
     }
 
-    function simulate(drawdowns, totY, fixM, fixR, varR, extraM, oneOffMap) {
+    function simulate(drawdowns, totY, fixM, fixR, varR, extraM, oneOffMap, subStart, payableR) {
         let balance = 0, points = [], intFlow = [], month = 0, interestSum = 0, totalPrincipalPaid = 0;
         let annual = [];
+        let totalSubsidyAcc = 0;
+        let subsidyPotForNextYear = 0;
+        let subsidyAppliedThisYear = 0; 
+        
         let totalLoanGoal = Object.values(drawdowns).reduce((a,b) => a+b, 0);
         let startMonth = Math.min(...Object.keys(drawdowns).map(Number));
         if (!isFinite(startMonth)) startMonth = 1;
 
-        let fixedPMT = 0, varPMT = 0, currentPMT = 0;
         let lastYearInt = 0, lastYearPrincipal = 0;
+        let currentPMT = 0, varPMTStart = 0;
 
         for (month = 1; month <= 600; month++) {
             if (drawdowns[month]) balance += drawdowns[month];
+
+            if (month > 1 && (month - 1) % 12 === 0 && subsidyPotForNextYear > 0) {
+                subsidyAppliedThisYear = subsidyPotForNextYear;
+                balance -= subsidyAppliedThisYear;
+                totalPrincipalPaid += subsidyAppliedThisYear;
+                totalSubsidyAcc += subsidyAppliedThisYear;
+                subsidyPotForNextYear = 0; 
+            }
+
             if (balance <= 0 && month > startMonth) {
                 points.push(0); intFlow.push(interestSum);
                 break;
             }
+
             let isFixed = month <= (startMonth + fixM - 1);
             let rate = isFixed ? fixR : varR;
+            
             if (month === startMonth) {
-                fixedPMT = getPMT(totalLoanGoal, fixR, totY);
-                currentPMT = fixedPMT;
+                currentPMT = getPMT(totalLoanGoal, fixR, totY);
             } else if (month === (startMonth + fixM)) {
-                varPMT = getPMT(balance, varR, (totY * 12 - (month - startMonth)) / 12);
-                currentPMT = varPMT;
+                currentPMT = getPMT(balance, varR, (totY * 12 - (month - startMonth)) / 12);
+                varPMTStart = currentPMT;
             }
+
             let mInt = balance * (rate / 12 / 100);
             interestSum += mInt;
+            
+            if (month >= subStart && rate > payableR) {
+                let diff = rate - payableR;
+                subsidyPotForNextYear += (mInt * (diff / rate));
+            }
+
             let pay = currentPMT + (!isFixed ? extraM : 0) + (oneOffMap[month] || 0);
             let principal = Math.min(balance, Math.max(0, pay - mInt));
             balance -= principal;
             totalPrincipalPaid += principal;
+            
             points.push(balance);
             intFlow.push(interestSum);
 
             if (month % 12 === 0 || (balance <= 0 && month > startMonth)) {
-                let currentTotalInt = interestSum;
-                let currentTotalPrin = totalPrincipalPaid;
-                annual.push({ yr: Math.ceil(month/12), intYear: currentTotalInt - lastYearInt, intTotal: currentTotalInt, prinYear: currentTotalPrin - lastYearPrincipal, prinTotal: currentTotalPrin, bal: balance });
-                lastYearInt = currentTotalInt;
-                lastYearPrincipal = currentTotalPrin;
+                annual.push({ 
+                    yr: Math.ceil(month/12), 
+                    intYear: interestSum - lastYearInt, 
+                    intTotal: interestSum,
+                    appliedSub: subsidyAppliedThisYear,
+                    accSub: totalSubsidyAcc,
+                    prinYear: totalPrincipalPaid - lastYearPrincipal, 
+                    prinTotal: totalPrincipalPaid, 
+                    bal: balance
+                });
+                subsidyAppliedThisYear = 0; 
+                lastYearInt = interestSum;
+                lastYearPrincipal = totalPrincipalPaid;
                 if (balance <= 0) break;
             }
         }
-        return { points, intFlow, interestSum, months: month - startMonth, fixedPMT, varPMT, annual, totalLoanGoal };
+        return { points, intFlow, interestSum, months: month - startMonth, varPMT: varPMTStart, annual, totalLoanGoal, totalSubsidyAcc };
     }
 
     function calculate() {
@@ -254,6 +308,8 @@
         const FR = parseFloat(document.getElementById('fixedRate').value) || 0;
         const VR = parseFloat(document.getElementById('varRate').value) || 0;
         const EM = parseFloat(document.getElementById('extraMonthly').value) || 0;
+        const S_START = parseInt(document.getElementById('subsidyStartMonth').value) || 999;
+        const P_RATE = parseFloat(document.getElementById('payableRate').value) || 0;
         
         const oneOffs = {};
         document.querySelectorAll('#oneOffContainer .extra-payment-row').forEach(row => {
@@ -262,40 +318,89 @@
             if (a && m) oneOffs[m] = (oneOffs[m] || 0) + a;
         });
 
-        const base = simulate(drawdowns, TY, FM, FR, VR, 0, {});
-        const mid = simulate(drawdowns, TY, FM, FR, VR, EM, {});
-        const full = simulate(drawdowns, TY, FM, FR, VR, EM, oneOffs);
+        const base = simulate(drawdowns, TY, FM, FR, VR, 0, {}, 999, 0);
+        const mid = simulate(drawdowns, TY, FM, FR, VR, EM, {}, 999, 0);
+        const sub = simulate(drawdowns, TY, FM, FR, VR, EM, {}, S_START, P_RATE);
+        const full = simulate(drawdowns, TY, FM, FR, VR, EM, oneOffs, S_START, P_RATE);
 
-        document.getElementById('baseInstalment').innerText = "€" + euro.format(base.fixedPMT);
+        let tot = Object.values(drawdowns).reduce((a,b)=>a+b,0);
+        let basePMT = getPMT(tot, FR, TY);
+
+        document.getElementById('baseInstalment').innerText = "€" + euro.format(basePMT);
         document.getElementById('origTotalRepaid').innerText = "€" + euro.format(base.totalLoanGoal + base.interestSum);
-        document.getElementById('outflowMath').innerText = "€" + euro.format(mid.varPMT) + " + €" + euro.format(EM);
-        document.getElementById('totalMonthlyOutflow').innerText = "€" + euro.format(mid.varPMT + EM);
+        
+        document.getElementById('totalMonthlyOutflow').innerText = "€" + euro.format(full.varPMT + EM);
+        document.getElementById('strategyMath').innerText = `€${euro.format(full.varPMT)} (Var) + €${euro.format(EM)} (Extra) = €${euro.format(full.varPMT + EM)}`;
         document.getElementById('blueTimeSave').innerText = ((base.months - mid.months)/12).toFixed(1) + " Years Saved";
-        document.getElementById('totalOneOffs').innerText = "€" + euro.format(Object.values(oneOffs).reduce((a,b)=>a+b, 0)) + " Total";
-        document.getElementById('greenTimeSave').innerText = ((mid.months - full.months)/12).toFixed(1) + " Years Saved";
-        document.getElementById('totalInterest').innerText = "€" + euro.format(full.interestSum);
+        
+        document.getElementById('totalSubsidyGained').innerText = "€" + euro.format(sub.totalSubsidyAcc);
+        document.getElementById('orangeTimeSave').innerText = ((mid.months - sub.months)/12).toFixed(1) + " Years Saved";
+
+        document.getElementById('totalOneOffs').innerText = "€" + euro.format(Object.values(oneOffs).reduce((a,b)=>a+b, 0));
+        document.getElementById('greenTimeSave').innerText = ((sub.months - full.months)/12).toFixed(1) + " Years Saved";
+        
+        // Strategic Result Box Update
+        const totalLifetimeCost = full.totalLoanGoal + full.interestSum;
+        const costPaidByMe = totalLifetimeCost - full.totalSubsidyAcc;
+
+        document.getElementById('paidInterestByMe').innerText = "€" + euro.format(full.interestSum - full.totalSubsidyAcc);
+        document.getElementById('paidBySubsidy').innerText = "€" + euro.format(full.totalSubsidyAcc);
         document.getElementById('actualTime').innerText = (full.months / 12).toFixed(1) + " Years";
-        document.getElementById('costFull').innerText = "€" + euro.format(full.totalLoanGoal + full.interestSum);
+        
+        document.getElementById('costFull').innerText = "€" + euro.format(totalLifetimeCost);
+        document.getElementById('costPaidByMe').innerText = "€" + euro.format(costPaidByMe);
 
         let tableHtml = "";
         full.annual.forEach(d => {
-            tableHtml += `<tr><td>Year ${d.yr}</td><td>€${euro.format(d.intYear)}</td><td>€${euro.format(d.intTotal)}</td><td>€${euro.format(d.prinYear)}</td><td>€${euro.format(d.prinTotal)}</td><td><strong>€${euro.format(d.bal)}</strong></td></tr>`;
+            let subStyle = d.appliedSub > 0 ? "color:var(--orange-sub); font-weight:bold;" : "color:#ccc;";
+            tableHtml += `<tr>
+                <td>Year ${d.yr}</td>
+                <td>€${euro.format(d.intYear)}</td>
+                <td style="color:#64748b;">€${euro.format(d.intTotal)}</td>
+                <td style="${subStyle}">€${euro.format(d.appliedSub)}</td>
+                <td style="color:#64748b;">€${euro.format(d.accSub)}</td>
+                <td>€${euro.format(d.prinYear)}</td><td>€${euro.format(d.prinTotal)}</td>
+                <td><strong>€${euro.format(d.bal)}</strong></td>
+            </tr>`;
         });
         document.querySelector("#annualTable tbody").innerHTML = tableHtml;
-        renderCharts(base, full, full.totalLoanGoal);
+        renderCharts(base, mid, sub, full, full.totalLoanGoal);
     }
 
-    function renderCharts(base, full, loanAmt) {
+    function renderCharts(base, mid, sub, full, loanAmt) {
         if (pChart) pChart.destroy(); if (iChart) iChart.destroy();
-        const labels = Array.from({length: Math.max(base.points.length, full.points.length)}, (_, i) => i + 1);
-        const commonOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { x: { title: { display: true, text: 'Month' } }, y: { title: { display: true, text: 'Amount (€)' } } } };
-        pChart = new Chart(document.getElementById('payoffChart'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Original', data: base.points, borderColor: '#94a3b8', borderWidth: 1, pointRadius: 0 }, { label: 'Strategic', data: full.points, borderColor: '#10b981', borderWidth: 3, fill: true, backgroundColor: 'rgba(16, 185, 129, 0.05)', pointRadius: 0 }] }, options: commonOptions });
-        iChart = new Chart(document.getElementById('interestChart'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Total Interest', data: full.intFlow, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, pointRadius: 0 }, { label: 'Total Principal', data: full.points.map(b => loanAmt - b), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, pointRadius: 0 }] }, options: commonOptions });
+        const maxLen = Math.max(base.points.length, full.points.length);
+        const labels = Array.from({length: maxLen}, (_, i) => i + 1);
+        
+        pChart = new Chart(document.getElementById('payoffChart'), { 
+            type: 'line', 
+            data: { 
+                labels: labels, 
+                datasets: [
+                    { label: 'Original', data: base.points, borderColor: '#94a3b8', borderWidth: 1, pointRadius: 0 }, 
+                    { label: 'Strategy (No Subsidy)', data: mid.points, borderColor: '#2563eb', borderWidth: 2, borderDash: [5,5], pointRadius: 0 }, 
+                    { label: 'With Subsidy (Benefit Gap)', data: sub.points, borderColor: '#f59e0b', borderWidth: 2, pointRadius: 0 }, 
+                    { label: 'Full Result', data: full.points, borderColor: '#10b981', borderWidth: 3, pointRadius: 0 }
+                ] 
+            }, 
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+
+        iChart = new Chart(document.getElementById('interestChart'), { 
+            type: 'line', 
+            data: { 
+                labels: labels, 
+                datasets: [
+                    { label: 'Total Interest', data: full.intFlow, borderColor: '#ef4444', fill: true, pointRadius: 0, backgroundColor: 'rgba(239,68,68,0.1)' }, 
+                    { label: 'Principal Growth', data: full.points.map(b => loanAmt - b), borderColor: '#3b82f6', fill: true, pointRadius: 0, backgroundColor: 'rgba(59,130,246,0.1)' }
+                ] 
+            }, 
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
     }
 
     function saveScenario() {
-        const nameInput = document.getElementById('scenarioName');
-        const name = nameInput.value.trim() || "Scenario " + new Date().toLocaleTimeString();
+        const name = document.getElementById('scenarioName').value || "Scenario " + new Date().toLocaleTimeString();
         const data = {
             drawdowns: Array.from(document.querySelectorAll('#drawdownContainer .extra-payment-row')).map(r => ({a: r.querySelectorAll('input')[0].value, m: r.querySelectorAll('input')[1].value})),
             totalYears: document.getElementById('totalYears').value,
@@ -303,38 +408,23 @@
             fixedRate: document.getElementById('fixedRate').value,
             varRate: document.getElementById('varRate').value,
             extraMonthly: document.getElementById('extraMonthly').value,
+            subsidyStart: document.getElementById('subsidyStartMonth').value,
+            payableRate: document.getElementById('payableRate').value,
             oneOffs: Array.from(document.querySelectorAll('#oneOffContainer .extra-payment-row')).map(r => ({a: r.querySelectorAll('input')[0].value, m: r.querySelectorAll('input')[1].value}))
         };
-        let scenarios = JSON.parse(localStorage.getItem('nicola_scenarios_v13') || "{}");
-        scenarios[name] = data;
-        localStorage.setItem('nicola_scenarios_v13', JSON.stringify(scenarios));
+        let s = JSON.parse(localStorage.getItem('nicola_scenarios_v210') || "{}");
+        s[name] = data;
+        localStorage.setItem('nicola_scenarios_v210', JSON.stringify(s));
         updateScenarioList();
+        alert("Scenario Saved");
         document.getElementById('deleteBtn').style.display = 'block';
-        alert("Saved!");
-    }
-
-    function deleteScenario() {
-        const name = document.getElementById('scenarioList').value;
-        if (!name) return;
-        if (confirm("Delete this scenario?")) {
-            let scenarios = JSON.parse(localStorage.getItem('nicola_scenarios_v13') || "{}");
-            delete scenarios[name];
-            localStorage.setItem('nicola_scenarios_v13', JSON.stringify(scenarios));
-            updateScenarioList();
-            document.getElementById('deleteBtn').style.display = 'none';
-            document.getElementById('scenarioName').value = "";
-        }
     }
 
     function updateScenarioList() {
         const list = document.getElementById('scenarioList');
-        const scenarios = JSON.parse(localStorage.getItem('nicola_scenarios_v13') || "{}");
+        const s = JSON.parse(localStorage.getItem('nicola_scenarios_v210') || "{}");
         list.innerHTML = '<option value="">-- Load Saved --</option>';
-        for (let name in scenarios) {
-            const opt = document.createElement('option');
-            opt.value = name; opt.textContent = name;
-            list.appendChild(opt);
-        }
+        for (let n in s) { list.add(new Option(n, n)); }
     }
 
     function handleListChange(name) {
@@ -342,47 +432,55 @@
             document.getElementById('deleteBtn').style.display = 'none';
             return;
         }
-        const scenarios = JSON.parse(localStorage.getItem('nicola_scenarios_v13') || "{}");
-        const data = scenarios[name];
+        const data = JSON.parse(localStorage.getItem('nicola_scenarios_v210'))[name];
         document.getElementById('scenarioName').value = name;
-        document.getElementById('deleteBtn').style.display = 'block'; // SHOW ON LOAD
+        document.getElementById('deleteBtn').style.display = 'block';
 
-        // Load Drawdowns
         const dContainer = document.getElementById('drawdownContainer');
         dContainer.innerHTML = '';
         data.drawdowns.forEach(d => {
             const div = document.createElement('div');
             div.className = 'extra-payment-row';
             div.innerHTML = `<input type="number" class="draw-amount" value="${d.a}"><input type="number" class="draw-month" value="${d.m}">`;
-            div.querySelectorAll('input').forEach(i => i.oninput = () => checkNewDrawdown(i));
+            div.querySelectorAll('input').forEach(i => i.oninput = () => checkNewDrawdown());
             dContainer.appendChild(div);
         });
-        checkNewDrawdown();
-
         document.getElementById('totalYears').value = data.totalYears;
         document.getElementById('fixedMonths').value = data.fixedMonths;
         document.getElementById('fixedRate').value = data.fixedRate;
         document.getElementById('varRate').value = data.varRate;
         document.getElementById('extraMonthly').value = data.extraMonthly;
-
-        // Load One-offs
+        document.getElementById('subsidyStartMonth').value = data.subsidyStart;
+        document.getElementById('payableRate').value = data.payableRate;
         const oContainer = document.getElementById('oneOffContainer');
         oContainer.innerHTML = '';
-        data.oneOffs.forEach(o => {
-            const div = document.createElement('div');
-            div.className = 'extra-payment-row';
-            div.innerHTML = `<input type="number" class="oneoff-amount" value="${o.a}"><input type="number" class="oneoff-month" value="${o.m}">`;
-            div.querySelectorAll('input').forEach(i => i.oninput = () => checkNewOneOff(i));
-            oContainer.appendChild(div);
-        });
-        checkNewOneOff();
+        if(data.oneOffs) {
+            data.oneOffs.forEach(o => {
+                const div = document.createElement('div');
+                div.className = 'extra-payment-row';
+                div.innerHTML = `<input type="number" class="oneoff-amount" value="${o.a}"><input type="number" class="oneoff-month" value="${o.m}">`;
+                div.querySelectorAll('input').forEach(i => i.oninput = () => checkNewOneOff());
+                oContainer.appendChild(div);
+            });
+        }
         calculate();
+    }
+    
+    function deleteScenario() {
+        const name = document.getElementById('scenarioName').value;
+        if(confirm("Delete " + name + "?")) {
+            let s = JSON.parse(localStorage.getItem('nicola_scenarios_v210') || "{}");
+            delete s[name]; 
+            localStorage.setItem('nicola_scenarios_v210', JSON.stringify(s));
+            updateScenarioList(); 
+            document.getElementById('deleteBtn').style.display = 'none';
+            document.getElementById('scenarioName').value = "";
+        }
     }
 
     function exportPDF() {
         const element = document.getElementById('report-content');
-        const opt = { margin: [10, 10, 10, 10], filename: 'Nicola_Strategy_v1.32.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
-        html2pdf().set(opt).from(element).save();
+        html2pdf().set({ margin: 10, filename: 'Nicola_Strategy_v2.10.pdf', jsPDF: { orientation: 'landscape' } }).from(element).save();
     }
 
     window.onload = () => { updateScenarioList(); calculate(); };
