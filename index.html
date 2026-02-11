@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Nicola's Mortgage Strategy Suite v1.31</title>
+    <title>Nicola's Mortgage Strategy Suite v2.3 - A precision tacking suite</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -36,7 +36,7 @@
         
         .btn-export { width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .btn-save { background: var(--green-save); margin-top: 5px; }
-        .btn-delete { background: var(--danger); margin-top: 5px; display: none; }
+        .btn-delete { background: var(--danger); margin-top: 5px; display: none; } /* Hidden by default */
         .extra-payment-row { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; margin-bottom: 8px; }
         .pdf-page-break { page-break-before: always; margin-top: 40px; }
     </style>
@@ -45,7 +45,7 @@
 
 <div class="app-header">
     <div class="home-icon">🏡</div>
-    <h1>Nicola's Mortgage Strategy Suite v1.31</h1>
+    <h1>Nicola's Mortgage Strategy Suite v1.32</h1>
 </div>
 
 <div id="report-content">
@@ -53,7 +53,7 @@
         <div class="card no-print">
             <h3>Scenario Manager</h3>
             <label>Scenario Name</label>
-            <input type="text" id="scenarioName" placeholder="e.g. 21-Year Strategy">
+            <input type="text" id="scenarioName" placeholder="e.g. Current Strategy">
             <button class="btn-export btn-save" onclick="saveScenario()">Save Scenario</button>
             <select id="scenarioList" onchange="handleListChange(this.value)" style="margin-top:10px;">
                 <option value="">-- Load Saved --</option>
@@ -66,20 +66,16 @@
             <label>Drawdowns (€ / Month released)</label>
             <div id="drawdownContainer">
                 <div class="extra-payment-row">
-                    <input type="number" class="draw-amount" placeholder="Amount €" value="50000" oninput="checkNewDrawdown(this)">
-                    <input type="number" class="draw-month" placeholder="Mo" value="1" oninput="checkNewDrawdown(this)">
+                    <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown(this)">
+                    <input type="number" class="draw-month" value="1" oninput="checkNewDrawdown(this)">
                 </div>
                 <div class="extra-payment-row">
-                    <input type="number" class="draw-amount" placeholder="Amount €" value="50000" oninput="checkNewDrawdown(this)">
-                    <input type="number" class="draw-month" placeholder="Mo" value="3" oninput="checkNewDrawdown(this)">
+                    <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown(this)">
+                    <input type="number" class="draw-month" value="3" oninput="checkNewDrawdown(this)">
                 </div>
                 <div class="extra-payment-row">
-                    <input type="number" class="draw-amount" placeholder="Amount €" value="50000" oninput="checkNewDrawdown(this)">
-                    <input type="number" class="draw-month" placeholder="Mo" value="6" oninput="checkNewDrawdown(this)">
-                </div>
-                <div class="extra-payment-row">
-                    <input type="number" class="draw-amount" placeholder="Amount €" oninput="checkNewDrawdown(this)">
-                    <input type="number" class="draw-month" placeholder="Mo" oninput="checkNewDrawdown(this)">
+                    <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown(this)">
+                    <input type="number" class="draw-month" value="6" oninput="checkNewDrawdown(this)">
                 </div>
             </div>
 
@@ -203,7 +199,6 @@
         let balance = 0, points = [], intFlow = [], month = 0, interestSum = 0, totalPrincipalPaid = 0;
         let annual = [];
         let totalLoanGoal = Object.values(drawdowns).reduce((a,b) => a+b, 0);
-        
         let startMonth = Math.min(...Object.keys(drawdowns).map(Number));
         if (!isFinite(startMonth)) startMonth = 1;
 
@@ -212,15 +207,12 @@
 
         for (month = 1; month <= 600; month++) {
             if (drawdowns[month]) balance += drawdowns[month];
-            
             if (balance <= 0 && month > startMonth) {
                 points.push(0); intFlow.push(interestSum);
                 break;
             }
-
             let isFixed = month <= (startMonth + fixM - 1);
             let rate = isFixed ? fixR : varR;
-
             if (month === startMonth) {
                 fixedPMT = getPMT(totalLoanGoal, fixR, totY);
                 currentPMT = fixedPMT;
@@ -228,13 +220,10 @@
                 varPMT = getPMT(balance, varR, (totY * 12 - (month - startMonth)) / 12);
                 currentPMT = varPMT;
             }
-
             let mInt = balance * (rate / 12 / 100);
             interestSum += mInt;
-            
             let pay = currentPMT + (!isFixed ? extraM : 0) + (oneOffMap[month] || 0);
             let principal = Math.min(balance, Math.max(0, pay - mInt));
-            
             balance -= principal;
             totalPrincipalPaid += principal;
             points.push(balance);
@@ -243,14 +232,7 @@
             if (month % 12 === 0 || (balance <= 0 && month > startMonth)) {
                 let currentTotalInt = interestSum;
                 let currentTotalPrin = totalPrincipalPaid;
-                annual.push({
-                    yr: Math.ceil(month/12),
-                    intYear: currentTotalInt - lastYearInt,
-                    intTotal: currentTotalInt,
-                    prinYear: currentTotalPrin - lastYearPrincipal,
-                    prinTotal: currentTotalPrin,
-                    bal: balance
-                });
+                annual.push({ yr: Math.ceil(month/12), intYear: currentTotalInt - lastYearInt, intTotal: currentTotalInt, prinYear: currentTotalPrin - lastYearPrincipal, prinTotal: currentTotalPrin, bal: balance });
                 lastYearInt = currentTotalInt;
                 lastYearPrincipal = currentTotalPrin;
                 if (balance <= 0) break;
@@ -286,10 +268,8 @@
 
         document.getElementById('baseInstalment').innerText = "€" + euro.format(base.fixedPMT);
         document.getElementById('origTotalRepaid').innerText = "€" + euro.format(base.totalLoanGoal + base.interestSum);
-        
         document.getElementById('outflowMath').innerText = "€" + euro.format(mid.varPMT) + " + €" + euro.format(EM);
         document.getElementById('totalMonthlyOutflow').innerText = "€" + euro.format(mid.varPMT + EM);
-        
         document.getElementById('blueTimeSave').innerText = ((base.months - mid.months)/12).toFixed(1) + " Years Saved";
         document.getElementById('totalOneOffs').innerText = "€" + euro.format(Object.values(oneOffs).reduce((a,b)=>a+b, 0)) + " Total";
         document.getElementById('greenTimeSave').innerText = ((mid.months - full.months)/12).toFixed(1) + " Years Saved";
@@ -299,14 +279,7 @@
 
         let tableHtml = "";
         full.annual.forEach(d => {
-            tableHtml += `<tr>
-                <td>Year ${d.yr}</td>
-                <td>€${euro.format(d.intYear)}</td>
-                <td>€${euro.format(d.intTotal)}</td>
-                <td>€${euro.format(d.prinYear)}</td>
-                <td>€${euro.format(d.prinTotal)}</td>
-                <td><strong>€${euro.format(d.bal)}</strong></td>
-            </tr>`;
+            tableHtml += `<tr><td>Year ${d.yr}</td><td>€${euro.format(d.intYear)}</td><td>€${euro.format(d.intTotal)}</td><td>€${euro.format(d.prinYear)}</td><td>€${euro.format(d.prinTotal)}</td><td><strong>€${euro.format(d.bal)}</strong></td></tr>`;
         });
         document.querySelector("#annualTable tbody").innerHTML = tableHtml;
         renderCharts(base, full, full.totalLoanGoal);
@@ -336,7 +309,21 @@
         scenarios[name] = data;
         localStorage.setItem('nicola_scenarios_v13', JSON.stringify(scenarios));
         updateScenarioList();
+        document.getElementById('deleteBtn').style.display = 'block';
         alert("Saved!");
+    }
+
+    function deleteScenario() {
+        const name = document.getElementById('scenarioList').value;
+        if (!name) return;
+        if (confirm("Delete this scenario?")) {
+            let scenarios = JSON.parse(localStorage.getItem('nicola_scenarios_v13') || "{}");
+            delete scenarios[name];
+            localStorage.setItem('nicola_scenarios_v13', JSON.stringify(scenarios));
+            updateScenarioList();
+            document.getElementById('deleteBtn').style.display = 'none';
+            document.getElementById('scenarioName').value = "";
+        }
     }
 
     function updateScenarioList() {
@@ -351,41 +338,50 @@
     }
 
     function handleListChange(name) {
-        if (!name) return;
+        if (!name) {
+            document.getElementById('deleteBtn').style.display = 'none';
+            return;
+        }
         const scenarios = JSON.parse(localStorage.getItem('nicola_scenarios_v13') || "{}");
         const data = scenarios[name];
         document.getElementById('scenarioName').value = name;
-        document.getElementById('drawdownContainer').innerHTML = '';
+        document.getElementById('deleteBtn').style.display = 'block'; // SHOW ON LOAD
+
+        // Load Drawdowns
+        const dContainer = document.getElementById('drawdownContainer');
+        dContainer.innerHTML = '';
         data.drawdowns.forEach(d => {
-            const container = document.getElementById('drawdownContainer');
             const div = document.createElement('div');
             div.className = 'extra-payment-row';
-            div.innerHTML = `<input type="number" class="draw-amount" value="${d.a}">
-                             <input type="number" class="draw-month" value="${d.m}">`;
+            div.innerHTML = `<input type="number" class="draw-amount" value="${d.a}"><input type="number" class="draw-month" value="${d.m}">`;
             div.querySelectorAll('input').forEach(i => i.oninput = () => checkNewDrawdown(i));
-            container.appendChild(div);
+            dContainer.appendChild(div);
         });
+        checkNewDrawdown();
+
         document.getElementById('totalYears').value = data.totalYears;
         document.getElementById('fixedMonths').value = data.fixedMonths;
         document.getElementById('fixedRate').value = data.fixedRate;
         document.getElementById('varRate').value = data.varRate;
         document.getElementById('extraMonthly').value = data.extraMonthly;
-        document.getElementById('oneOffContainer').innerHTML = '';
+
+        // Load One-offs
+        const oContainer = document.getElementById('oneOffContainer');
+        oContainer.innerHTML = '';
         data.oneOffs.forEach(o => {
-            const container = document.getElementById('oneOffContainer');
             const div = document.createElement('div');
             div.className = 'extra-payment-row';
-            div.innerHTML = `<input type="number" class="oneoff-amount" value="${o.a}">
-                             <input type="number" class="oneoff-month" value="${o.m}">`;
+            div.innerHTML = `<input type="number" class="oneoff-amount" value="${o.a}"><input type="number" class="oneoff-month" value="${o.m}">`;
             div.querySelectorAll('input').forEach(i => i.oninput = () => checkNewOneOff(i));
-            container.appendChild(div);
+            oContainer.appendChild(div);
         });
+        checkNewOneOff();
         calculate();
     }
 
     function exportPDF() {
         const element = document.getElementById('report-content');
-        const opt = { margin: [10, 10, 10, 10], filename: 'Nicola_Strategy_v1.31.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+        const opt = { margin: [10, 10, 10, 10], filename: 'Nicola_Strategy_v1.32.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
         html2pdf().set(opt).from(element).save();
     }
 
