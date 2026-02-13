@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Nicola's Mortgage Strategy Suite v3.7</title>
+    <title>Nicola's Mortgage Strategy Suite v3.8</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -45,7 +45,7 @@
 
 <div class="app-header">
     <div class="home-icon">🏡</div>
-    <h1>Nicola's Mortgage Strategy Suite v3.7 - A precision tackling suite </h1>
+    <h1>Nicola's Mortgage Strategy Suite v3.8 - A precision tackling suite</h1>
 </div>
 
 <div id="report-content">
@@ -53,7 +53,7 @@
         <div class="card no-print">
             <h3>Scenario Manager</h3>
             <label>Scenario Name</label>
-            <input type="text" id="scenarioName" placeholder="e.g. Current Strategy">
+            <input type="text" id="scenarioName" placeholder="e.g. 150k Plan">
             <button class="btn-export btn-save" onclick="saveScenario()">Save Scenario</button>
             <select id="scenarioList" onchange="handleListChange(this.value)" style="margin-top:10px;">
                 <option value="">-- Load Saved --</option>
@@ -65,16 +65,16 @@
             <label>Drawdowns (Amount / Month)</label>
             <div id="drawdownContainer">
                 <div class="extra-payment-row">
-                    <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown(this)">
-                    <input type="number" class="draw-month" value="1" oninput="checkNewDrawdown(this)">
+                    <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown()">
+                    <input type="number" class="draw-month" value="1" oninput="checkNewDrawdown()">
                 </div>
                 <div class="extra-payment-row">
-                    <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown(this)">
-                    <input type="number" class="draw-month" value="3" oninput="checkNewDrawdown(this)">
+                    <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown()">
+                    <input type="number" class="draw-month" value="3" oninput="checkNewDrawdown()">
                 </div>
                 <div class="extra-payment-row">
-                    <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown(this)">
-                    <input type="number" class="draw-month" value="6" oninput="checkNewDrawdown(this)">
+                    <input type="number" class="draw-amount" value="50000" oninput="checkNewDrawdown()">
+                    <input type="number" class="draw-month" value="6" oninput="checkNewDrawdown()">
                 </div>
             </div>
 
@@ -93,8 +93,8 @@
             <label>One-off Lump Sums (€ / Mo)</label>
             <div id="oneOffContainer">
                 <div class="extra-payment-row">
-                    <input type="number" class="oneoff-amount" placeholder="€" oninput="checkNewOneOff(this)">
-                    <input type="number" class="oneoff-month" placeholder="Mo" oninput="checkNewOneOff(this)">
+                    <input type="number" class="oneoff-amount" placeholder="€" oninput="checkNewOneOff()">
+                    <input type="number" class="oneoff-month" placeholder="Mo" oninput="checkNewOneOff()">
                 </div>
             </div>
 
@@ -165,6 +165,7 @@
 
     <div class="card" style="max-width: 1200px; margin: 20px auto;">
         <h3>Annual Breakdown Schedule</h3>
+        <p style="font-size:0.75rem; color:#64748b; margin-bottom:10px;">*Note: Subsidy earned in Year N is applied to the balance in Year N+1.</p>
         <table class="schedule-table" id="annualTable">
             <thead>
                 <tr>
@@ -189,7 +190,8 @@
 
     function checkNewDrawdown() {
         const container = document.getElementById('drawdownContainer');
-        if (container.lastElementChild.querySelectorAll('input')[0].value !== "") {
+        const rows = container.querySelectorAll('.extra-payment-row');
+        if (rows[rows.length - 1].querySelectorAll('input')[0].value !== "") {
             addGenericRow('drawdownContainer', 'draw-amount', 'draw-month', 'Amount €', 'Mo', checkNewDrawdown);
         }
         calculate();
@@ -197,7 +199,8 @@
 
     function checkNewOneOff() {
         const container = document.getElementById('oneOffContainer');
-        if (container.lastElementChild.querySelectorAll('input')[0].value !== "") {
+        const rows = container.querySelectorAll('.extra-payment-row');
+        if (rows[rows.length - 1].querySelectorAll('input')[0].value !== "") {
             addGenericRow('oneOffContainer', 'oneoff-amount', 'oneoff-month', '€', 'Mo', checkNewOneOff);
         }
         calculate();
@@ -222,9 +225,9 @@
     function simulate(drawdowns, totY, fixM, fixR, varR, extraM, oneOffMap, subStart, payableR) {
         let balance = 0, points = [], intFlow = [], month = 0, interestSum = 0, totalPrincipalPaid = 0;
         let annual = [];
-        let totalSubsidyAcc = 0;
-        let subsidyPotForNextYear = 0;
-        let subsidyAppliedThisYear = 0; 
+        let totalSubsidyApplied = 0;
+        let subsidyPotEarnedThisYear = 0;
+        let subsidyPotReadyToApply = 0; 
         
         let totalLoanGoal = Object.values(drawdowns).reduce((a,b) => a+b, 0);
         let startMonth = Math.min(...Object.keys(drawdowns).map(Number));
@@ -236,12 +239,13 @@
         for (month = 1; month <= 600; month++) {
             if (drawdowns[month]) balance += drawdowns[month];
 
-            if (month > 1 && (month - 1) % 12 === 0 && subsidyPotForNextYear > 0) {
-                subsidyAppliedThisYear = subsidyPotForNextYear;
-                balance -= subsidyAppliedThisYear;
-                totalPrincipalPaid += subsidyAppliedThisYear;
-                totalSubsidyAcc += subsidyAppliedThisYear;
-                subsidyPotForNextYear = 0; 
+            // Subsidy Application (Year N+1 Logic)
+            if (month > 1 && (month - 1) % 12 === 0 && subsidyPotReadyToApply > 0) {
+                let applyNow = Math.min(balance, subsidyPotReadyToApply);
+                balance -= applyNow;
+                totalPrincipalPaid += applyNow;
+                totalSubsidyApplied += applyNow;
+                subsidyPotReadyToApply = 0;
             }
 
             if (balance <= 0 && month > startMonth) {
@@ -264,7 +268,7 @@
             
             if (month >= subStart && rate > payableR) {
                 let diff = rate - payableR;
-                subsidyPotForNextYear += (mInt * (diff / rate));
+                subsidyPotEarnedThisYear += (mInt * (diff / rate));
             }
 
             let pay = currentPMT + (!isFixed ? extraM : 0) + (oneOffMap[month] || 0);
@@ -276,23 +280,29 @@
             intFlow.push(interestSum);
 
             if (month % 12 === 0 || (balance <= 0 && month > startMonth)) {
+                let earnedCopy = subsidyPotEarnedThisYear;
+                if (month % 12 === 0) {
+                    subsidyPotReadyToApply = subsidyPotEarnedThisYear;
+                }
+
                 annual.push({ 
                     yr: Math.ceil(month/12), 
                     intYear: interestSum - lastYearInt, 
                     intTotal: interestSum,
-                    appliedSub: subsidyAppliedThisYear,
-                    accSub: totalSubsidyAcc,
+                    accSub: totalSubsidyApplied,
                     prinYear: totalPrincipalPaid - lastYearPrincipal, 
                     prinTotal: totalPrincipalPaid, 
-                    bal: balance
+                    bal: balance,
+                    earnedThisYear: earnedCopy
                 });
-                subsidyAppliedThisYear = 0; 
+                
+                subsidyPotEarnedThisYear = 0; 
                 lastYearInt = interestSum;
                 lastYearPrincipal = totalPrincipalPaid;
                 if (balance <= 0) break;
             }
         }
-        return { points, intFlow, interestSum, months: month - startMonth, varPMT: varPMTStart, annual, totalLoanGoal, totalSubsidyAcc };
+        return { points, intFlow, interestSum, months: month - startMonth, varPMT: varPMTStart, annual, totalLoanGoal, totalSubsidyAcc: totalSubsidyApplied };
     }
 
     function calculate() {
@@ -333,35 +343,35 @@
         document.getElementById('strategyMath').innerText = `€${euro.format(full.varPMT)} (Var) + €${euro.format(EM)} (Extra) = €${euro.format(full.varPMT + EM)}`;
         document.getElementById('blueTimeSave').innerText = ((base.months - mid.months)/12).toFixed(1) + " Years Saved";
         
-        document.getElementById('totalSubsidyGained').innerText = "€" + euro.format(sub.totalSubsidyAcc);
+        document.getElementById('totalSubsidyGained').innerText = "€" + euro.format(full.totalSubsidyAcc);
         document.getElementById('orangeTimeSave').innerText = ((mid.months - sub.months)/12).toFixed(1) + " Years Saved";
 
         document.getElementById('totalOneOffs').innerText = "€" + euro.format(Object.values(oneOffs).reduce((a,b)=>a+b, 0));
         document.getElementById('greenTimeSave').innerText = ((sub.months - full.months)/12).toFixed(1) + " Years Saved";
         
-        // Strategic Result Box Update
         const totalLifetimeCost = full.totalLoanGoal + full.interestSum;
         const costPaidByMe = totalLifetimeCost - full.totalSubsidyAcc;
 
         document.getElementById('paidInterestByMe').innerText = "€" + euro.format(full.interestSum - full.totalSubsidyAcc);
         document.getElementById('paidBySubsidy').innerText = "€" + euro.format(full.totalSubsidyAcc);
         document.getElementById('actualTime').innerText = (full.months / 12).toFixed(1) + " Years";
-        
         document.getElementById('costFull').innerText = "€" + euro.format(totalLifetimeCost);
         document.getElementById('costPaidByMe').innerText = "€" + euro.format(costPaidByMe);
 
         let tableHtml = "";
-        full.annual.forEach(d => {
-            let subStyle = d.appliedSub > 0 ? "color:var(--orange-sub); font-weight:bold;" : "color:#ccc;";
+        let prevYearEarned = 0;
+        full.annual.forEach((d) => {
+            let subStyle = prevYearEarned > 0 ? "color:var(--orange-sub); font-weight:bold;" : "color:#ccc;";
             tableHtml += `<tr>
                 <td>Year ${d.yr}</td>
                 <td>€${euro.format(d.intYear)}</td>
                 <td style="color:#64748b;">€${euro.format(d.intTotal)}</td>
-                <td style="${subStyle}">€${euro.format(d.appliedSub)}</td>
+                <td style="${subStyle}">€${euro.format(prevYearEarned)}</td>
                 <td style="color:#64748b;">€${euro.format(d.accSub)}</td>
                 <td>€${euro.format(d.prinYear)}</td><td>€${euro.format(d.prinTotal)}</td>
                 <td><strong>€${euro.format(d.bal)}</strong></td>
             </tr>`;
+            prevYearEarned = d.earnedThisYear;
         });
         document.querySelector("#annualTable tbody").innerHTML = tableHtml;
         renderCharts(base, mid, sub, full, full.totalLoanGoal);
@@ -412,27 +422,23 @@
             payableRate: document.getElementById('payableRate').value,
             oneOffs: Array.from(document.querySelectorAll('#oneOffContainer .extra-payment-row')).map(r => ({a: r.querySelectorAll('input')[0].value, m: r.querySelectorAll('input')[1].value}))
         };
-        let s = JSON.parse(localStorage.getItem('nicola_scenarios_v210') || "{}");
+        let s = JSON.parse(localStorage.getItem('nicola_scenarios_v212') || "{}");
         s[name] = data;
-        localStorage.setItem('nicola_scenarios_v210', JSON.stringify(s));
+        localStorage.setItem('nicola_scenarios_v212', JSON.stringify(s));
         updateScenarioList();
         alert("Scenario Saved");
-        document.getElementById('deleteBtn').style.display = 'block';
     }
 
     function updateScenarioList() {
         const list = document.getElementById('scenarioList');
-        const s = JSON.parse(localStorage.getItem('nicola_scenarios_v210') || "{}");
+        const s = JSON.parse(localStorage.getItem('nicola_scenarios_v212') || "{}");
         list.innerHTML = '<option value="">-- Load Saved --</option>';
         for (let n in s) { list.add(new Option(n, n)); }
     }
 
     function handleListChange(name) {
-        if (!name) {
-            document.getElementById('deleteBtn').style.display = 'none';
-            return;
-        }
-        const data = JSON.parse(localStorage.getItem('nicola_scenarios_v210'))[name];
+        if (!name) { document.getElementById('deleteBtn').style.display='none'; return; }
+        const data = JSON.parse(localStorage.getItem('nicola_scenarios_v212'))[name];
         document.getElementById('scenarioName').value = name;
         document.getElementById('deleteBtn').style.display = 'block';
 
@@ -469,18 +475,15 @@
     function deleteScenario() {
         const name = document.getElementById('scenarioName').value;
         if(confirm("Delete " + name + "?")) {
-            let s = JSON.parse(localStorage.getItem('nicola_scenarios_v210') || "{}");
-            delete s[name]; 
-            localStorage.setItem('nicola_scenarios_v210', JSON.stringify(s));
-            updateScenarioList(); 
-            document.getElementById('deleteBtn').style.display = 'none';
-            document.getElementById('scenarioName').value = "";
+            let s = JSON.parse(localStorage.getItem('nicola_scenarios_v212') || "{}");
+            delete s[name]; localStorage.setItem('nicola_scenarios_v212', JSON.stringify(s));
+            updateScenarioList(); document.getElementById('deleteBtn').style.display = 'none';
         }
     }
 
     function exportPDF() {
         const element = document.getElementById('report-content');
-        html2pdf().set({ margin: 10, filename: 'Nicola_Strategy_v2.10.pdf', jsPDF: { orientation: 'landscape' } }).from(element).save();
+        html2pdf().set({ margin: 10, filename: 'Nicola_Strategy_v2.12.pdf', jsPDF: { orientation: 'landscape' } }).from(element).save();
     }
 
     window.onload = () => { updateScenarioList(); calculate(); };
